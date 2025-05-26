@@ -1,50 +1,80 @@
 import streamlit as st
 import yfinance as yf
-import plotly.graph_objs as go
-from datetime import datetime, timedelta
+import pandas as pd
+import plotly.express as px
 
-st.set_page_config(page_title="글로벌 TOP10 주가 시각화", layout="wide")
-st.title("🌎 글로벌 시가총액 TOP 10 기업 - 1년간 주가 변화")
-
-# 시가총액 상위 10개 기업
-companies = {
-    "Apple": "AAPL",
-    "Microsoft": "MSFT",
-    "Saudi Aramco": "2222.SR",
-    "Alphabet (Google)": "GOOGL",
-    "Amazon": "AMZN",
-    "NVIDIA": "NVDA",
-    "Berkshire Hathaway": "BRK-B",
-    "Meta": "META",
-    "TSMC": "TSM",
-    "Tesla": "TSLA"
+# 시가총액 Top 10 기업 및 티커 매핑 (2025년 2월 기준)
+top10_companies = {
+    'AAPL': 'Apple',
+    'NVDA': 'NVIDIA',
+    'MSFT': 'Microsoft',
+    'AMZN': 'Amazon',
+    'GOOGL': 'Alphabet',
+    'META': 'Meta Platforms',
+    '2222.SR': 'Saudi Aramco',
+    'TSLA': 'Tesla',
+    'AVGO': 'Broadcom',
+    'TSM': 'TSMC'
 }
 
-# 사용자 선택
-selected = st.multiselect("비교할 기업을 선택하세요 (최대 5개 추천)", list(companies.keys()), default=["Apple", "Microsoft", "Amazon"])
+st.title('글로벌 시가총액 Top 10 기업 주가 분석')
 
-# 날짜 범위 설정
-end_date = datetime.today()
-start_date = end_date - timedelta(days=365)
+# 데이터 불러오기
+@st.cache_data
+def load_stock_data():
+    end_date = pd.Timestamp.now()
+    start_date = end_date - pd.DateOffset(years=1)
+    
+    data = yf.download(
+        tickers=list(top10_companies.keys()),
+        start=start_date,
+        end=end_date,
+        group_by='ticker'
+    )
+    return data
 
-# Plotly 그래프 생성
-fig = go.Figure()
+df = load_stock_data()
 
-for name in selected:
-    ticker = companies[name]
-    try:
-        df = yf.download(ticker, start=start_date, end=end_date)
-        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name=name))
-    except Exception as e:
-        st.error(f"{name} 데이터 로딩 실패: {e}")
-
-fig.update_layout(
-    title="최근 1년간 주가 변화 비교",
-    xaxis_title="날짜",
-    yaxis_title="종가 (USD)",
-    hovermode="x unified",
-    template="plotly_white",
-    height=600
+# 기업 선택 위젯
+selected_company = st.selectbox(
+    '분석할 기업 선택',
+    options=list(top10_companies.values())
 )
 
-st.plotly_chart(fig, use_container_width=True)
+# 선택된 기업 티커 추출
+ticker = [k for k, v in top10_companies.items() if v == selected_company][0]
+
+# 주가 데이터 추출
+try:
+    company_df = df[ticker][['Close']].reset_index()
+    company_df.columns = ['Date', 'Close Price']
+    
+    # Plotly 시각화
+    fig = px.line(
+        company_df,
+        x='Date',
+        y='Close Price',
+        title=f'{selected_company} 주가 추이 (최근 1년)',
+        labels={'Close Price': '주가(USD)'}
+    )
+    
+    st.plotly_chart(fig)
+    
+except KeyError:
+    st.error(f"{selected_company} 데이터를 불러오는 데 실패했습니다.")
+
+# 추가 분석 옵션
+st.subheader("추가 분석 옵션")
+if st.checkbox('모든 기업 주가 비교 보기'):
+    close_prices = pd.DataFrame({
+        company: df[ticker]['Close'] 
+        for ticker, company in top10_companies.items()
+        if 'Close' in df[ticker]
+    })
+    
+    fig = px.line(
+        close_prices,
+        title='Top 10 기업 주가 비교',
+        labels={'value': '주가(USD)', 'variable': '기업'}
+    )
+    st.plotly_chart(fig)
