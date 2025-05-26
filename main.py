@@ -1,28 +1,28 @@
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
-from geopy.geocoders import Nominatim
 
-# 앱 제목
-st.title("기관 위치 지도 표시 앱")
-st.markdown("기관명을 입력하면 해당 위치를 지도에 표시해드려요! 🗺️")
+st.title("🗺️ 나만의 위치 북마크 지도")
 
-# 사용자 입력 받기
-place_name = st.text_input("기관명을 입력하세요:", "")
+st.write("아래에 장소 정보를 입력하고 지도에 표시해보세요!")
 
-# 위치 탐색 및 지도 생성
-if place_name:
-    geolocator = Nominatim(user_agent="streamlit_app")
-    location = geolocator.geocode(place_name)
+# 장소 입력
+place = st.text_input("장소 이름", value="서울 시청")
+lat = st.number_input("위도 (Latitude)", value=37.5665, format="%.6f")
+lon = st.number_input("경도 (Longitude)", value=126.9780, format="%.6f")
 
-    if location:
-        # 지도 생성
-        m = folium.Map(location=[location.latitude, location.longitude], zoom_start=15)
-        folium.Marker([location.latitude, location.longitude], popup=place_name).add_to(m)
+# 세션 상태 저장
+if "places" not in st.session_state:
+    st.session_state.places = []
 
-        # 지도 출력
-        st.success(f"'{place_name}'의 위치를 찾았어요!")
-        st_folium(m, width=700, height=500)
-    else:
-        st.error("위치를 찾을 수 없어요. 정확한 기관명을 입력해주세요.")
+if st.button("지도에 추가하기"):
+    st.session_state.places.append((place, lat, lon))
+
+# 지도 그리기
+m = folium.Map(location=[37.5665, 126.9780], zoom_start=6)
+for name, lat, lon in st.session_state.places:
+    folium.Marker([lat, lon], tooltip=name).add_to(m)
+
+st_folium(m, width=700, height=500)
+
 
