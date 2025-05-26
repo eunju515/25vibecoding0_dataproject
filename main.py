@@ -12,7 +12,7 @@ capitals = [
     (
         "서울 (Seoul)", 37.5665, 126.9780,
         "경복궁",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Gyeongbokgung_Geunjeongjeon.jpg/800px-Gyeongbokgung_Geunjeongjeon.jpg"
+        ""https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Geunjeongjeon%2C_Gyeongbokgung_Palace.jpg/640px-Geunjeongjeon%2C_Gyeongbokgung_Palace.jpg"
     ),
     (
         "워싱턴 D.C. (Washington, D.C.)", 38.8951, -77.0364,
