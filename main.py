@@ -2,27 +2,35 @@ import streamlit as st
 import folium
 from streamlit_folium import st_folium
 
-st.title("🗺️ 나만의 위치 북마크 지도")
+# 페이지 제목
+st.title("🌍 세계의 수도 위치 지도")
+st.write("아래 지도에는 세계 주요 수도들이 표시되어 있습니다.")
 
-st.write("아래에 장소 정보를 입력하고 지도에 표시해보세요!")
+# 예시: 세계 주요 수도들 (도시명, 위도, 경도)
+capitals = [
+    ("서울 (Seoul)", 37.5665, 126.9780),
+    ("워싱턴 D.C. (Washington, D.C.)", 38.8951, -77.0364),
+    ("도쿄 (Tokyo)", 35.6895, 139.6917),
+    ("베이징 (Beijing)", 39.9042, 116.4074),
+    ("런던 (London)", 51.5074, -0.1278),
+    ("파리 (Paris)", 48.8566, 2.3522),
+    ("베를린 (Berlin)", 52.52, 13.405),
+    ("모스크바 (Moscow)", 55.7558, 37.6173),
+    ("오타와 (Ottawa)", 45.4215, -75.6999),
+    ("캔버라 (Canberra)", -35.2809, 149.1300),
+    ("브라질리아 (Brasília)", -15.7939, -47.8828),
+    ("뉴델리 (New Delhi)", 28.6139, 77.2090),
+    ("자카르타 (Jakarta)", -6.2088, 106.8456),
+    ("마드리드 (Madrid)", 40.4168, -3.7038),
+    ("카이로 (Cairo)", 30.0444, 31.2357),
+]
 
-# 장소 입력
-place = st.text_input("장소 이름", value="서울 시청")
-lat = st.number_input("위도 (Latitude)", value=37.5665, format="%.6f")
-lon = st.number_input("경도 (Longitude)", value=126.9780, format="%.6f")
+# 지도 생성 (중심: 서울)
+m = folium.Map(location=[20, 0], zoom_start=2)
 
-# 세션 상태 저장
-if "places" not in st.session_state:
-    st.session_state.places = []
-
-if st.button("지도에 추가하기"):
-    st.session_state.places.append((place, lat, lon))
-
-# 지도 그리기
-m = folium.Map(location=[37.5665, 126.9780], zoom_start=6)
-for name, lat, lon in st.session_state.places:
+# 수도들 지도에 추가
+for name, lat, lon in capitals:
     folium.Marker([lat, lon], tooltip=name).add_to(m)
 
-st_folium(m, width=700, height=500)
-
-
+# Streamlit에 지도 표시
+st_folium(m, width=800, height=500)
