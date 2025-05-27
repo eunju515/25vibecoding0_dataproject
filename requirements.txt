@@ -4,3 +4,5 @@ yfinance
 plotly
 pydeck
 streamlit-aggrid
+reportlab
+python-docx
