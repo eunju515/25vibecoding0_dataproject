@@ -31,9 +31,9 @@ if uploaded_file is not None:
     # 선택 가능한 컬럼(학번, 이름 제외)
     selectable_cols = [col for col in columns if col not in [id_col, name_col]]
 
-    # 멀티셀렉트: 선택된 항목이 곧바로 반영
+    # 멀티셀렉트: 선택/해제 모두 실시간 반영
     selected_cols = st.multiselect(
-        "생기부 기초파일에 포함할 설문 항목을 선택하세요. (학번, 이름은 항상 포함됩니다)",
+        "생기부 기초파일에 포함할 설문 항목을 선택/제거하세요. (학번, 이름은 항상 포함됩니다)",
         selectable_cols,
         default=[],
         key="selected_cols"
@@ -88,4 +88,4 @@ if uploaded_file is not None:
     else:
         st.warning("다운로드 가능한 데이터가 없습니다.")
 else:
-    st.info("CSV 파일을 업로드하면 항목을 선택해 생기부 기초파일을 만들 수 있습니다.")
+    st.info("CSV 파일을 업로드하면 항목을 선택/제거해 생기부 기초파일을 만들 수 있습니다.")
