@@ -53,7 +53,7 @@ if uploaded_file is not None:
             'align': 'center',
             'valign': 'vcenter'
         })
-        worksheet.merge_range('A1:E1', title_text, title_format)
+        worksheet.merge_range('A1:E1', '(        _)특강 등록부', title_format)
         # 제목 행 높이 자동(지정하지 않음)
 
         # 빈 행(2행, 0-based index 1) 높이(약간만, 예: 10)
