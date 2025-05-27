@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.header("특강 등록부")
+st.header("특강 등록부 생성")
 
 uploaded_file = st.file_uploader("설문 결과 CSV 파일을 업로드하세요.", type="csv")
 
