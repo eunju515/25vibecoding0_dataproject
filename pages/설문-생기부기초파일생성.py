@@ -3,54 +3,49 @@ import pandas as pd
 import io
 import re
 
-try:
-    from konlpy.tag import Okt
-    okt = Okt()
-    use_konlpy = True
-except ImportError:
-    use_konlpy = False
-
 st.header("생활기록부 기초파일 생성기")
 
 uploaded_file = st.file_uploader("설문 결과 CSV 파일을 업로드하세요.", type="csv")
 
-def extract_nouns_korean(text):
-    # KoNLPy가 설치된 경우 명사만 추출
-    if use_konlpy:
-        nouns = okt.nouns(text)
-        return ' '.join(nouns) if nouns else text
-    else:
-        # 간단 규칙 기반 대체(명사 추출 불가 환경)
-        # 괄호, 따옴표 등 제거
-        q = re.sub(r'[\(\)\[\]\"\']', '', text)
-        # 문장 끝 불필요한 특수문자 제거
-        q = re.sub(r'[\s.,?…!]*$', '', q)
-        # 자주 쓰이는 조사 및 동사형, 명령형, 조건형 등 제거
-        q = re.sub(r'(을|를|에|의|은|는|도|가|이|으로|로|에서|에게|께|한테|부터|까지|와|과|및|이나|나|든지|라도|마저|조차|처럼|보다|밖에|만|이고|이고서|이며|이자|이면서|이지만|이든지|이나|까지|까지도|이라|로서|으로서|로써|으로써|으로부터|로부터|에게서|께서|에서부터|에서|에게|께|한테|에|에서|에게서|께서|에서부터|에까지|에서까지|에까지|까지)\s*', '', q)
-        q = re.sub(r'(쓰시오|적으시오|입력하시오|작성|적기|써주세요|다시 입력하시오|있다면|있을까요|있나요|있습니까|해주세요|해 주세요|해주십시오|해주시기 바랍니다|해주시길 바랍니다|해보세요|해보면|해보는|해보자)', '', q)
-        q = re.sub(r'[\s]+', ' ', q)
-        return q.strip() or text
+def extract_main_word(question):
+    q = re.sub(r'\s*\(.*\)\s*', '', question)
+    q = re.sub(r'[\s.,?…!]*$', '', q)
+    q = re.sub(r'(을|를|에|의|은|는|도|가|이|으로|로)\s*', '', q)
+    q = re.sub(r'(쓰시오|적으시오|입력하시오|작성|적기|써주세요|다시 입력하시오)', '', q)
+    return q.strip() or question
 
-def get_column_display_names(cols):
-    return [extract_nouns_korean(col) for col in cols]
+def add_items():
+    for col in st.session_state.get('add_cols', []):
+        if col not in st.session_state.sel_cols:
+            st.session_state.sel_cols.append(col)
+    st.session_state.add_cols = []
+
+def remove_items():
+    st.session_state.sel_cols = [
+        col for col in st.session_state.sel_cols 
+        if col not in st.session_state.get('remove_cols', [])
+    ]
+    st.session_state.remove_cols = []
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     columns = list(df.columns)
-    # 학번, 이름 컬럼명 자동 탐지
+    
+    # 학번, 이름 컬럼 자동 탐지
     id_col = next((col for col in columns if '학번' in col), None)
     name_col = next((col for col in columns if '이름' in col), None)
-
+    
     if not id_col or not name_col:
         st.error("CSV 파일에 학번 또는 이름 컬럼이 존재하지 않습니다.")
         st.stop()
 
-    # 세션 상태 관리
+    # 세션 상태 초기화
     if 'sel_cols' not in st.session_state:
         st.session_state.sel_cols = []
 
     # 항목 추가/제거 UI
     st.write("생기부 기초파일에 포함할 항목을 추가/제거하세요.")
+    
     col1, col2 = st.columns(2)
     with col1:
         selectable_cols = [col for col in columns if col not in [id_col, name_col] + st.session_state.sel_cols]
@@ -59,11 +54,7 @@ if uploaded_file is not None:
             selectable_cols,
             key='add_cols'
         )
-        if st.button("항목 추가하기"):
-            for col in add_cols:
-                if col not in st.session_state.sel_cols:
-                    st.session_state.sel_cols.append(col)
-            st.session_state.add_cols = []
+        st.button("항목 추가하기", on_click=add_items)
 
     with col2:
         if st.session_state.sel_cols:
@@ -72,23 +63,21 @@ if uploaded_file is not None:
                 st.session_state.sel_cols,
                 key='remove_cols'
             )
-            if st.button("항목 제거하기"):
-                st.session_state.sel_cols = [col for col in st.session_state.sel_cols if col not in remove_cols]
-                st.session_state.remove_cols = []
+            st.button("항목 제거하기", on_click=remove_items)
 
     if st.button("모든 항목 초기화"):
         st.session_state.sel_cols = []
 
-    # 최종 컬럼 및 명사형 항목명 변환
+    # 최종 컬럼 및 항목명 변환
     final_cols = [id_col, name_col] + st.session_state.sel_cols
-    display_names = get_column_display_names(final_cols)
+    new_col_names = [extract_main_word(col) for col in final_cols]
 
-    st.markdown(f"**현재 선택된 항목:** {' → '.join(display_names)}")
+    st.markdown(f"**현재 선택된 항목:** {' → '.join(new_col_names)}")
 
-    # 미리보기
+    # 미리보기 생성 (컬럼 존재 여부 확인)
     if all(col in df.columns for col in final_cols):
         preview_df = df[final_cols].fillna('').replace('nan', '').head(10)
-        preview_df.columns = display_names
+        preview_df.columns = new_col_names
         st.subheader("생기부 기초파일 미리보기 (상위 10명)")
         st.dataframe(preview_df, use_container_width=True, hide_index=True)
     else:
@@ -98,25 +87,25 @@ if uploaded_file is not None:
     if final_cols and all(col in df.columns for col in final_cols):
         output = io.BytesIO()
         base_df = df[final_cols].fillna('')
-        base_df.columns = display_names
+        base_df.columns = new_col_names
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             base_df.to_excel(writer, index=False, sheet_name="생기부기초")
             workbook = writer.book
             worksheet = writer.sheets["생기부기초"]
             header_format = workbook.add_format({
-                'bold': True, 'font_size': 12, 'align': 'center',
+                'bold': True, 'font_size': 12, 'align': 'center', 
                 'valign': 'vcenter', 'border': 1, 'bg_color': '#D9E1F2'
             })
             cell_format = workbook.add_format({
                 'font_size': 12, 'align': 'center', 'valign': 'vcenter', 'border': 1
             })
             worksheet.set_row(0, 28)
-            for col_num, value in enumerate(display_names):
+            for col_num, value in enumerate(new_col_names):
                 worksheet.write(0, col_num, value, header_format)
                 worksheet.set_column(col_num, col_num, 18)
             for row_num in range(1, len(base_df)+1):
                 worksheet.set_row(row_num, 22)
-                for col_num in range(len(display_names)):
+                for col_num in range(len(new_col_names)):
                     worksheet.write(row_num, col_num, base_df.iloc[row_num-1, col_num], cell_format)
         output.seek(0)
         st.download_button(
