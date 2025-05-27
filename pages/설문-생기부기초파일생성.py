@@ -8,73 +8,44 @@ st.header("생활기록부 기초파일 생성기")
 uploaded_file = st.file_uploader("설문 결과 CSV 파일을 업로드하세요.", type="csv")
 
 def extract_main_word(question):
+    # 괄호, 특수문자, 조사, 명령형, 조건형 등 제거하여 명사형으로 단순화
     q = re.sub(r'\s*\(.*\)\s*', '', question)
     q = re.sub(r'[\s.,?…!]*$', '', q)
-    q = re.sub(r'(을|를|에|의|은|는|도|가|이|으로|로)\s*', '', q)
-    q = re.sub(r'(쓰시오|적으시오|입력하시오|작성|적기|써주세요|다시 입력하시오)', '', q)
+    q = re.sub(r'(을|를|에|의|은|는|도|가|이|으로|로|에서|에게|께|한테|부터|까지|와|과|및|이나|나|든지|라도|마저|조차|처럼|보다|밖에|만)\s*', '', q)
+    q = re.sub(r'(쓰시오|적으시오|입력하시오|작성|적기|써주세요|다시 입력하시오|있다면|있을까요|있나요|있습니까|해주세요|해 주세요|해주십시오|해주시기 바랍니다|해주시길 바랍니다|해보세요|해보면|해보는|해보자)', '', q)
+    q = re.sub(r'[\s]+', ' ', q)
     return q.strip() or question
-
-def add_items():
-    for col in st.session_state.get('add_cols', []):
-        if col not in st.session_state.sel_cols:
-            st.session_state.sel_cols.append(col)
-    st.session_state.add_cols = []
-
-def remove_items():
-    st.session_state.sel_cols = [
-        col for col in st.session_state.sel_cols 
-        if col not in st.session_state.get('remove_cols', [])
-    ]
-    st.session_state.remove_cols = []
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     columns = list(df.columns)
-    
+
     # 학번, 이름 컬럼 자동 탐지
     id_col = next((col for col in columns if '학번' in col), None)
     name_col = next((col for col in columns if '이름' in col), None)
-    
+
     if not id_col or not name_col:
         st.error("CSV 파일에 학번 또는 이름 컬럼이 존재하지 않습니다.")
         st.stop()
 
-    # 세션 상태 초기화
-    if 'sel_cols' not in st.session_state:
-        st.session_state.sel_cols = []
+    # 선택 가능한 컬럼(학번, 이름 제외)
+    selectable_cols = [col for col in columns if col not in [id_col, name_col]]
 
-    # 항목 추가/제거 UI
-    st.write("생기부 기초파일에 포함할 항목을 추가/제거하세요.")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        selectable_cols = [col for col in columns if col not in [id_col, name_col] + st.session_state.sel_cols]
-        add_cols = st.multiselect(
-            "추가할 설문 항목 선택 (중복 불가)",
-            selectable_cols,
-            key='add_cols'
-        )
-        st.button("항목 추가하기", on_click=add_items)
+    # 멀티셀렉트: 선택된 항목이 곧바로 반영
+    selected_cols = st.multiselect(
+        "생기부 기초파일에 포함할 설문 항목을 선택하세요. (학번, 이름은 항상 포함됩니다)",
+        selectable_cols,
+        default=[],
+        key="selected_cols"
+    )
 
-    with col2:
-        if st.session_state.sel_cols:
-            remove_cols = st.multiselect(
-                "제거할 설문 항목 선택",
-                st.session_state.sel_cols,
-                key='remove_cols'
-            )
-            st.button("항목 제거하기", on_click=remove_items)
-
-    if st.button("모든 항목 초기화"):
-        st.session_state.sel_cols = []
-
-    # 최종 컬럼 및 항목명 변환
-    final_cols = [id_col, name_col] + st.session_state.sel_cols
+    # 최종 컬럼 및 명사형 항목명 변환
+    final_cols = [id_col, name_col] + selected_cols
     new_col_names = [extract_main_word(col) for col in final_cols]
 
     st.markdown(f"**현재 선택된 항목:** {' → '.join(new_col_names)}")
 
-    # 미리보기 생성 (컬럼 존재 여부 확인)
+    # 미리보기
     if all(col in df.columns for col in final_cols):
         preview_df = df[final_cols].fillna('').replace('nan', '').head(10)
         preview_df.columns = new_col_names
@@ -93,7 +64,7 @@ if uploaded_file is not None:
             workbook = writer.book
             worksheet = writer.sheets["생기부기초"]
             header_format = workbook.add_format({
-                'bold': True, 'font_size': 12, 'align': 'center', 
+                'bold': True, 'font_size': 12, 'align': 'center',
                 'valign': 'vcenter', 'border': 1, 'bg_color': '#D9E1F2'
             })
             cell_format = workbook.add_format({
@@ -117,4 +88,4 @@ if uploaded_file is not None:
     else:
         st.warning("다운로드 가능한 데이터가 없습니다.")
 else:
-    st.info("CSV 파일을 업로드하면 항목을 추가/제거하며 생기부 기초파일을 만들 수 있습니다.")
+    st.info("CSV 파일을 업로드하면 항목을 선택해 생기부 기초파일을 만들 수 있습니다.")
