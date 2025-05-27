@@ -3,4 +3,4 @@ streamlit-folium
 yfinance
 plotly
 pydeck
-AgGrid
+streamlit-aggrid
