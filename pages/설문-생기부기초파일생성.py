@@ -8,13 +8,19 @@ st.header("생활기록부 기초파일 생성기")
 uploaded_file = st.file_uploader("설문 결과 CSV 파일을 업로드하세요.", type="csv")
 
 def extract_main_word(question):
-    # 괄호, 특수문자, 조사, 명령형, 조건형 등 제거하여 명사형으로 단순화
     q = re.sub(r'\s*\(.*\)\s*', '', question)
     q = re.sub(r'[\s.,?…!]*$', '', q)
     q = re.sub(r'(을|를|에|의|은|는|도|가|이|으로|로|에서|에게|께|한테|부터|까지|와|과|및|이나|나|든지|라도|마저|조차|처럼|보다|밖에|만)\s*', '', q)
     q = re.sub(r'(쓰시오|적으시오|입력하시오|작성|적기|써주세요|다시 입력하시오|있다면|있을까요|있나요|있습니까|해주세요|해 주세요|해주십시오|해주시기 바랍니다|해주시길 바랍니다|해보세요|해보면|해보는|해보자)', '', q)
     q = re.sub(r'[\s]+', ' ', q)
     return q.strip() or question
+
+def 학번정렬키(x):
+    # 숫자와 문자 혼합시에도 정렬 잘 되도록
+    try:
+        return int(str(x).replace('-', '').replace(' ', ''))
+    except:
+        return str(x)
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
@@ -43,13 +49,20 @@ if uploaded_file is not None:
     final_cols = [id_col, name_col] + selected_cols
     new_col_names = [extract_main_word(col) for col in final_cols]
 
-    st.markdown(f"**현재 선택된 항목:** {' → '.join(new_col_names)}")
-
-    # 미리보기
+    # 학번 기준 오름차순 정렬
     if all(col in df.columns for col in final_cols):
-        preview_df = df[final_cols].fillna('').replace('nan', '').head(10)
+        sorted_df = df[final_cols].copy()
+        sorted_df = sorted_df.sort_values(
+            by=id_col, 
+            key=lambda col: col.map(학번정렬키),
+            ascending=True
+        ).reset_index(drop=True)
+
+        # 미리보기
+        preview_df = sorted_df.fillna('').replace('nan', '').head(10)
         preview_df.columns = new_col_names
-        st.subheader("생기부 기초파일 미리보기 (상위 10명)")
+        st.markdown(f"**현재 선택된 항목:** {' → '.join(new_col_names)}")
+        st.subheader("생기부 기초파일 미리보기 (상위 10명, 학번 오름차순)")
         st.dataframe(preview_df, use_container_width=True, hide_index=True)
     else:
         st.error("선택한 항목 중 일부가 CSV 파일에 존재하지 않습니다.")
@@ -57,7 +70,12 @@ if uploaded_file is not None:
     # 엑셀 다운로드
     if final_cols and all(col in df.columns for col in final_cols):
         output = io.BytesIO()
-        base_df = df[final_cols].fillna('')
+        base_df = df[final_cols].copy()
+        base_df = base_df.sort_values(
+            by=id_col, 
+            key=lambda col: col.map(학번정렬키),
+            ascending=True
+        ).reset_index(drop=True)
         base_df.columns = new_col_names
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             base_df.to_excel(writer, index=False, sheet_name="생기부기초")
