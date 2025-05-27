@@ -8,20 +8,35 @@ uploaded_file = st.file_uploader("설문 결과 CSV 파일을 업로드하세요
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    # 컬럼 선택 안내 (학번, 이름은 기본 포함)
-    st.write("생기부 기초파일에 포함할 항목을 선택하세요. (학번, 이름은 항상 포함됩니다)")
     columns = list(df.columns)
     # 학번, 이름 컬럼명 자동 탐지
     id_col = [col for col in columns if '학번' in col][0]
     name_col = [col for col in columns if '이름' in col][0]
-    # 선택 항목 (학번, 이름 제외)
-    selectable_cols = [col for col in columns if col not in [id_col, name_col]]
-    selected_cols = st.multiselect(
-        "추가로 포함할 설문 항목 선택",
-        selectable_cols
+
+    # 세션 상태에 선택 항목 리스트 저장
+    if 'sel_cols' not in st.session_state:
+        st.session_state.sel_cols = []
+
+    selectable_cols = [col for col in columns if col not in [id_col, name_col] + st.session_state.sel_cols]
+
+    st.write("생기부 기초파일에 포함할 항목을 추가하세요. (학번, 이름은 항상 포함됩니다)")
+    add_cols = st.multiselect(
+        "추가할 설문 항목 선택 (중복 불가, 여러 개 선택 가능)",
+        selectable_cols,
+        key='add_cols'
     )
+
+    if st.button("항목 추가하기"):
+        for col in add_cols:
+            if col not in st.session_state.sel_cols:
+                st.session_state.sel_cols.append(col)
+        # 선택 후 multiselect 초기화
+        st.session_state.add_cols = []
+
     # 최종 컬럼 순서
-    final_cols = [id_col, name_col] + selected_cols
+    final_cols = [id_col, name_col] + st.session_state.sel_cols
+
+    st.markdown(f"**현재 선택된 항목:** {' → '.join(final_cols)}")
 
     # 미리보기
     st.subheader("생기부 기초파일 미리보기 (상위 10명)")
@@ -58,4 +73,4 @@ if uploaded_file is not None:
     )
     st.success("선택한 항목으로 생기부 기초파일을 생성하여 다운로드할 수 있습니다.")
 else:
-    st.info("CSV 파일을 업로드하면, 원하는 항목을 선택해 생기부 기초파일을 만들 수 있습니다.")
+    st.info("CSV 파일을 업로드하면, 원하는 항목을 계속 추가해 생기부 기초파일을 만들 수 있습니다.")
