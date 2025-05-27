@@ -16,7 +16,6 @@ def extract_main_word(question):
     return q.strip() or question
 
 def 학번정렬키(x):
-    # 숫자와 문자 혼합시에도 정렬 잘 되도록
     try:
         return int(str(x).replace('-', '').replace(' ', ''))
     except:
@@ -49,7 +48,7 @@ if uploaded_file is not None:
     final_cols = [id_col, name_col] + selected_cols
     new_col_names = [extract_main_word(col) for col in final_cols]
 
-    # 학번 기준 오름차순 정렬
+    # 학번 기준 오름차순 정렬 + 빈칸 공백 처리
     if all(col in df.columns for col in final_cols):
         sorted_df = df[final_cols].copy()
         sorted_df = sorted_df.sort_values(
@@ -57,9 +56,10 @@ if uploaded_file is not None:
             key=lambda col: col.map(학번정렬키),
             ascending=True
         ).reset_index(drop=True)
+        sorted_df = sorted_df.fillna('')  # 빈칸 공백 처리
 
         # 미리보기
-        preview_df = sorted_df.fillna('').replace('nan', '').head(10)
+        preview_df = sorted_df.head(10)
         preview_df.columns = new_col_names
         st.markdown(f"**현재 선택된 항목:** {' → '.join(new_col_names)}")
         st.subheader("생기부 기초파일 미리보기 (상위 10명, 학번 오름차순)")
@@ -76,6 +76,7 @@ if uploaded_file is not None:
             key=lambda col: col.map(학번정렬키),
             ascending=True
         ).reset_index(drop=True)
+        base_df = base_df.fillna('')  # 빈칸 공백 처리
         base_df.columns = new_col_names
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             base_df.to_excel(writer, index=False, sheet_name="생기부기초")
@@ -95,7 +96,9 @@ if uploaded_file is not None:
             for row_num in range(1, len(base_df)+1):
                 worksheet.set_row(row_num, 22)
                 for col_num in range(len(new_col_names)):
-                    worksheet.write(row_num, col_num, base_df.iloc[row_num-1, col_num], cell_format)
+                    # 빈칸(None/NaN)도 공백으로 저장
+                    val = base_df.iloc[row_num-1, col_num]
+                    worksheet.write(row_num, col_num, val if pd.notnull(val) else '', cell_format)
         output.seek(0)
         st.download_button(
             label="생기부 기초 엑셀파일 다운로드",
