@@ -81,7 +81,7 @@ if uploaded_file is not None:
 
         # 데이터 서식 및 행높이 적용 (4행부터, 0-based index 3)
         for row_num in range(len(registration_df)):
-            worksheet.set_row(row_num+3, 40)  # 전체 행 높이 40
+            worksheet.set_row(row_num+3, 35)  # 전체 행 높이 40
             for col_num, value in enumerate(registration_df.iloc[row_num]):
                 worksheet.write(row_num+3, col_num, value, cell_format)
 
