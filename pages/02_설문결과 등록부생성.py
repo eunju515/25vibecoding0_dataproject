@@ -3,10 +3,12 @@ import pandas as pd
 import io
 import os
 
+st.set_page_config(page_title="특강 등록부 생성기", layout="centered")
 st.header("📋 특강 등록부 생성기")
 
 uploaded_file = st.file_uploader("✅ 설문 결과 CSV 파일을 업로드하세요", type="csv")
 
+# 학번/이름 컬럼 자동 감지를 위한 함수
 def find_column_by_keywords(columns, keywords):
     for col in columns:
         for kw in keywords:
@@ -15,11 +17,10 @@ def find_column_by_keywords(columns, keywords):
     return None
 
 if uploaded_file is not None:
-    # 파일명에서 확장자 제거하여 제목 생성
     base_title = os.path.splitext(uploaded_file.name)[0]
     title_text = f"{base_title} 등록부"
 
-    # CSV 읽기 (인코딩 처리 포함)
+    # CSV 파일 읽기
     try:
         df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
     except UnicodeDecodeError:
@@ -28,7 +29,7 @@ if uploaded_file is not None:
     # 컬럼 정리
     df.columns = df.columns.str.strip().str.replace('\ufeff', '', regex=False)
 
-    # 학번/이름 컬럼 자동 감지
+    # 학번과 이름 자동 탐지
     id_keywords = ['학번']
     name_keywords = ['이름', '성명', 'name']
     id_col = find_column_by_keywords(df.columns, id_keywords)
@@ -41,10 +42,10 @@ if uploaded_file is not None:
 
     st.success(f"✅ 자동 인식된 컬럼: 학번 → `{id_col}`, 이름 → `{name_col}`")
 
-    # 등록부 생성
     registration_df = df[[id_col, name_col]].copy()
     registration_df.columns = ['학번', '이름']
 
+    # 학번 정렬
     def 학번정렬키(x):
         try:
             return int(str(x).replace('-', ''))
@@ -67,14 +68,14 @@ if uploaded_file is not None:
         column_order=['구분', '학번', '이름', '서명', '비고']
     )
 
-    # 엑셀 파일 생성
+    # 엑셀 다운로드 처리
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
         registration_df.to_excel(writer, index=False, sheet_name='등록부', startrow=2)
         workbook = writer.book
         worksheet = writer.sheets['등록부']
 
-        # 제목
+        # 제목 서식
         title_format = workbook.add_format({
             'bold': True,
             'font_size': 22,
@@ -82,7 +83,7 @@ if uploaded_file is not None:
             'valign': 'vcenter'
         })
         worksheet.merge_range('A1:E1', '(         ) 특강 등록부', title_format)
-        worksheet.set_row(1, 10)  # 빈 행
+        worksheet.set_row(1, 10)
 
         # 헤더 및 셀 서식
         header_format = workbook.add_format({
@@ -110,13 +111,15 @@ if uploaded_file is not None:
         for col_num, value in enumerate(registration_df.columns.values):
             worksheet.write(2, col_num, value, header_format)
 
-        # 데이터 입력
+        # 데이터 입력 (에러 방지를 위해 모든 value를 str로 변환)
         for row_num in range(len(registration_df)):
             worksheet.set_row(row_num+3, 35)
             for col_num, value in enumerate(registration_df.iloc[row_num]):
-                worksheet.write(row_num+3, col_num, value, cell_format)
+                safe_value = "" if pd.isna(value) else str(value)
+                worksheet.write(row_num+3, col_num, safe_value, cell_format)
 
-        worksheet.repeat_rows(0, 2)  # 제목+헤더 반복 인쇄
+        # 인쇄 시 반복될 행 지정
+        worksheet.repeat_rows(0, 2)
 
     excel_buffer.seek(0)
 
